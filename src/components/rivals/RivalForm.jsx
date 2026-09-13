@@ -1,5 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { usePlayerProfile } from '../../hooks/usePlayerProfile'
+import { useRivals } from '../../hooks/useRivals'
 import { useStrategySuggestions } from '../../hooks/useStrategySuggestions'
+import { useTournament } from '../../hooks/useTournament'
+import TableZoneMap from '../common/TableZoneMap'
 import {
   FormSection,
   OptionalSection,
@@ -7,6 +11,14 @@ import {
   TextAreaField,
   TextField,
 } from '../common/FormField'
+import {
+  collectRankingCandidates,
+  collectRankingClubs,
+  filterRankingCandidates,
+  filterRankingClubs,
+} from '../../utils/rivals'
+import { sanitizeZoneIds } from '../../utils/tableZones'
+import { normalizeName } from '../../utils/tournaments'
 import { BUILD, HEIGHT, MOBILITY } from '../../utils/constants'
 import { createRival } from '../../utils/dataModels'
 import {
@@ -36,10 +48,46 @@ function hasPhysicalData(rival) {
   )
 }
 
+const SUGGESTION_LIMIT = 8
+
 export default function RivalForm({ rival, onSubmit, submitLabel }) {
   const [values, setValues] = useState(() => getFormValues(rival))
   const [nameError, setNameError] = useState('')
   const phrases = useStrategySuggestions()
+  const { rivals } = useRivals()
+  const { tournaments } = useTournament()
+  const { profile } = usePlayerProfile()
+  const rankingCandidates = useMemo(
+    () => collectRankingCandidates(tournaments, rivals, profile.name),
+    [profile.name, rivals, tournaments],
+  )
+  const rankingClubs = useMemo(
+    () => collectRankingClubs(tournaments),
+    [tournaments],
+  )
+  const nameSuggestions = values.name.trim()
+    ? filterRankingCandidates(rankingCandidates, values.name)
+        .filter(
+          (candidate) =>
+            normalizeName(candidate.name) !== normalizeName(values.name),
+        )
+        .slice(0, SUGGESTION_LIMIT)
+        .map((candidate) => ({
+          id: `${candidate.tournamentId}-${candidate.name}`,
+          label: candidate.name,
+          subtitle: [candidate.club, candidate.tournamentName]
+            .filter(Boolean)
+            .join(' · '),
+          value: candidate,
+        }))
+    : []
+  const clubSuggestions = filterRankingClubs(rankingClubs, values.club)
+    .slice(0, SUGGESTION_LIMIT)
+    .map((club) => ({
+      id: club,
+      label: club,
+      value: club,
+    }))
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -51,6 +99,33 @@ export default function RivalForm({ rival, onSubmit, submitLabel }) {
     if (name === 'name' && nameError) {
       setNameError('')
     }
+  }
+
+  function handlePickRankingName(item) {
+    const candidate = item.value
+    setValues((currentValues) => ({
+      ...currentValues,
+      name: candidate.name,
+      club: candidate.club || currentValues.club,
+    }))
+
+    if (nameError) {
+      setNameError('')
+    }
+  }
+
+  function handlePickRankingClub(item) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      club: item.value,
+    }))
+  }
+
+  function handleZonesChange(targetZones) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      targetZones,
+    }))
   }
 
   function handleSubmit(event) {
@@ -66,6 +141,7 @@ export default function RivalForm({ rival, onSubmit, submitLabel }) {
       ...values,
       name,
       club: values.club.trim(),
+      targetZones: sanitizeZoneIds(values.targetZones),
     })
   }
 
@@ -80,6 +156,8 @@ export default function RivalForm({ rival, onSubmit, submitLabel }) {
           placeholder="Nombre del rival"
           autoComplete="off"
           error={nameError}
+          suggestionItems={nameSuggestions}
+          onPickSuggestion={handlePickRankingName}
         />
         <TextField
           label="Club"
@@ -88,6 +166,8 @@ export default function RivalForm({ rival, onSubmit, submitLabel }) {
           onChange={handleChange}
           placeholder="Club u origen"
           autoComplete="off"
+          suggestionItems={clubSuggestions}
+          onPickSuggestion={handlePickRankingClub}
         />
       </FormSection>
 
@@ -195,6 +275,10 @@ export default function RivalForm({ rival, onSubmit, submitLabel }) {
       </OptionalSection>
 
       <FormSection title="Información táctica">
+        <TableZoneMap
+          selectedIds={values.targetZones}
+          onChange={handleZonesChange}
+        />
         <TextField
           label="Distancia de la mesa"
           name="distanceFromTable"

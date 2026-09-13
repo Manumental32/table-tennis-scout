@@ -1,6 +1,7 @@
 import { getOptionLabel, HAND_OPTIONS } from '../../utils/labels'
 import { HAND } from '../../utils/constants'
 import { getScoutingPlan } from '../../utils/rivals'
+import TableZoneMap from '../common/TableZoneMap'
 
 function PlanSection({ title, items, accentClass, emptyLabel }) {
   return (
@@ -41,6 +42,8 @@ export default function QuickScoutingCard({ rival }) {
           <p className="mt-1 text-sm text-slate-300">{details.join(' · ')}</p>
         ) : null}
       </section>
+
+      <TableZoneMap selectedIds={rival.targetZones} readOnly />
 
       <PlanSection
         title="Hacer"

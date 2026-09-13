@@ -13,7 +13,9 @@ import {
   getOptionLabel,
 } from '../../utils/labels'
 import { formatRecordScore, formatWinRate } from '../../utils/stats'
+import { hasSelectedZones } from '../../utils/tableZones'
 import { buildYoutubeSearchUrl } from '../../utils/youtube'
+import TableZoneMap from '../common/TableZoneMap'
 
 function ProfileRow({ label, value }) {
   if (!value || value === 'Sin dato') {
@@ -36,7 +38,8 @@ function hasTacticalInfo(rival) {
       rival.preferredServe ||
       rival.problematicReceive ||
       rival.preferredBall ||
-      rival.generalNotes,
+      rival.generalNotes ||
+      hasSelectedZones(rival.targetZones),
   )
 }
 
@@ -188,6 +191,12 @@ export default function RivalProfile({
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
             Táctica
           </h3>
+          <TableZoneMap
+            selectedIds={rival.targetZones}
+            readOnly
+            title=""
+            description=""
+          />
           <ProfileBlock label="Distancia" value={rival.distanceFromTable} />
           <ProfileBlock label="Fortaleza" value={rival.mainStrengthDescription} />
           <ProfileBlock label="Debilidad" value={rival.mainWeaknessDescription} />

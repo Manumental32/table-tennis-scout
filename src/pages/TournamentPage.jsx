@@ -1,5 +1,5 @@
 import { CalendarDays, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import RankingView from '../components/ranking/RankingView'
@@ -9,6 +9,7 @@ import FixtureView from '../components/tournament/FixtureView'
 import TournamentForm from '../components/tournament/TournamentForm'
 import TournamentList from '../components/tournament/TournamentList'
 import TournamentPdfUpload from '../components/tournament/TournamentPdfUpload'
+import { useBackHandler } from '../hooks/useBackNavigation'
 import { useMatches } from '../hooks/useMatches'
 import { usePlayerProfile } from '../hooks/usePlayerProfile'
 import { useRivals } from '../hooks/useRivals'
@@ -76,6 +77,46 @@ export default function TournamentPage() {
   useEffect(() => {
     document.getElementById('app-content')?.scrollTo({ top: 0 })
   }, [screen])
+
+  const handleHardwareBack = useCallback(() => {
+    if (screen === SCREENS.ANALYSIS) {
+      setSelectedFixtureMatchId(null)
+      setScreen(SCREENS.FIXTURE)
+      return true
+    }
+
+    if (screen === SCREENS.RANKING) {
+      setScreen(rankingBackScreen)
+      return true
+    }
+
+    if (screen === SCREENS.REVIEW) {
+      setScreen(SCREENS.DETAIL)
+      return true
+    }
+
+    if (screen === SCREENS.FORM && selectedTournamentId) {
+      setScreen(SCREENS.DETAIL)
+      return true
+    }
+
+    if (
+      screen === SCREENS.FORM ||
+      screen === SCREENS.DETAIL ||
+      screen === SCREENS.FIXTURE
+    ) {
+      setScreen(SCREENS.LIST)
+      setSelectedTournamentId(null)
+      setSelectedFixtureMatchId(null)
+      setRankingBackScreen(SCREENS.FIXTURE)
+      setProcessError('')
+      return true
+    }
+
+    return false
+  }, [rankingBackScreen, screen, selectedTournamentId])
+
+  useBackHandler(handleHardwareBack)
 
   function openList() {
     setScreen(SCREENS.LIST)

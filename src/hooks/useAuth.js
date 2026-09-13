@@ -12,6 +12,12 @@ import {
   getSupabaseClient,
   isRemoteStorageEnabled,
 } from '../services/supabase/client'
+import {
+  createDevSession,
+  isLocalDevHost,
+  readDevSkip,
+  writeDevSkip,
+} from '../utils/devAuth'
 
 registerRemoteWriter((key, value) => {
   void upsertRemoteKey(key, value)
@@ -46,9 +52,12 @@ function clearRemoteSession() {
 
 export function useAuthState() {
   const enabled = isRemoteStorageEnabled()
-  const [ready, setReady] = useState(!enabled)
-  const [session, setSession] = useState(null)
-  const [hydrated, setHydrated] = useState(!enabled)
+  const canSkipLocal = isLocalDevHost()
+  const [ready, setReady] = useState(() => !enabled || readDevSkip())
+  const [session, setSession] = useState(() =>
+    readDevSkip() ? createDevSession() : null,
+  )
+  const [hydrated, setHydrated] = useState(() => !enabled || readDevSkip())
   const [hydrateError, setHydrateError] = useState('')
 
   const runHydrate = useCallback(async (userId) => {
@@ -68,6 +77,13 @@ export function useAuthState() {
   }, [enabled])
 
   useEffect(() => {
+    if (session?.isDevSkip) {
+      pauseRemoteSync()
+      setActiveUserId(null)
+    }
+  }, [session])
+
+  useEffect(() => {
     if (!enabled) {
       setActiveUserId(null)
       return undefined
@@ -76,6 +92,20 @@ export function useAuthState() {
     const client = getSupabaseClient()
 
     const { data } = client.auth.onAuthStateChange((event, nextSession) => {
+      if (readDevSkip() && !nextSession) {
+        pauseRemoteSync()
+        setActiveUserId(null)
+        setSession(createDevSession())
+        setReady(true)
+        setHydrated(true)
+        setHydrateError('')
+        return
+      }
+
+      if (nextSession && readDevSkip()) {
+        writeDevSkip(false)
+      }
+
       setSession(nextSession)
       setReady(true)
 
@@ -158,10 +188,32 @@ export function useAuthState() {
     return { error: '', status: 'needs_confirmation' }
   }, [applySession])
 
+  const enterLocalDev = useCallback(() => {
+    if (!isLocalDevHost()) {
+      return
+    }
+
+    writeDevSkip(true)
+    pauseRemoteSync()
+    setActiveUserId(null)
+    setSession(createDevSession())
+    setReady(true)
+    setHydrated(true)
+    setHydrateError('')
+  }, [])
+
   const signOut = useCallback(async () => {
+    if (session?.isDevSkip) {
+      writeDevSkip(false)
+      setSession(null)
+      setHydrated(!enabled)
+      clearRemoteSession()
+      return
+    }
+
     const client = getSupabaseClient()
     await client.auth.signOut()
-  }, [])
+  }, [enabled, session])
 
   const retryHydrate = useCallback(() => {
     return runHydrate(session?.user?.id)
@@ -183,6 +235,8 @@ export function useAuthState() {
       session,
       hydrated,
       hydrateError,
+      canSkipLocal,
+      enterLocalDev,
       signIn,
       signUp,
       signOut,
@@ -195,6 +249,8 @@ export function useAuthState() {
       session,
       hydrated,
       hydrateError,
+      canSkipLocal,
+      enterLocalDev,
       signIn,
       signUp,
       signOut,

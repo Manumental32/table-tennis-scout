@@ -1,10 +1,11 @@
 import { Plus, Search, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import QuickScoutingCard from '../components/rivals/QuickScoutingCard'
 import RivalForm from '../components/rivals/RivalForm'
 import RivalList from '../components/rivals/RivalList'
+import { useBackHandler } from '../hooks/useBackNavigation'
 import { useMatches } from '../hooks/useMatches'
 import { useRivals } from '../hooks/useRivals'
 import { filterRivals } from '../utils/rivals'
@@ -31,6 +32,28 @@ export default function RivalsPage() {
   useEffect(() => {
     document.getElementById('app-content')?.scrollTo({ top: 0 })
   }, [screen])
+
+  const handleHardwareBack = useCallback(() => {
+    if (screen === SCREENS.SCOUTING) {
+      setScreen(SCREENS.PROFILE)
+      return true
+    }
+
+    if (screen === SCREENS.FORM && selectedRivalId) {
+      setScreen(SCREENS.PROFILE)
+      return true
+    }
+
+    if (screen === SCREENS.FORM || screen === SCREENS.PROFILE) {
+      setScreen(SCREENS.LIST)
+      setSelectedRivalId(null)
+      return true
+    }
+
+    return false
+  }, [screen, selectedRivalId])
+
+  useBackHandler(handleHardwareBack)
 
   function openList() {
     setScreen(SCREENS.LIST)

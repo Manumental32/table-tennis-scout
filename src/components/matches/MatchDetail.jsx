@@ -10,6 +10,8 @@ import {
   hasFilledFields,
   isCoachedMatch,
 } from '../../utils/matches'
+import { hasSelectedZones } from '../../utils/tableZones'
+import TableZoneMap from '../common/TableZoneMap'
 
 function DetailBlock({ title, fields }) {
   const visibleFields = fields.filter((field) => field.value)
@@ -60,7 +62,7 @@ export default function MatchDetail({
       <section className="rounded-2xl bg-slate-800 px-4 py-4">
         {isCoaching ? (
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Cocheo
+            Coucheo
           </p>
         ) : null}
         <p className="mt-1 text-xl font-semibold text-white">{title}</p>
@@ -112,25 +114,33 @@ export default function MatchDetail({
       ) : null}
 
       {hasFilledFields(match.preMatchStrategy) ? (
-        <DetailBlock
-          title={isCoaching ? 'Plan para el compañero' : 'Pre-partido'}
-          fields={[
-            { label: 'Saques', value: match.preMatchStrategy.serves },
-            { label: 'Recepción', value: match.preMatchStrategy.receive },
-            {
-              label: 'Efectos y ritmo',
-              value: match.preMatchStrategy.effectsAndRhythm,
-            },
-            {
-              label: 'Ubicación',
-              value: match.preMatchStrategy.tablePlacement,
-            },
-            { label: 'Zonas', value: match.preMatchStrategy.targetAreas },
-            { label: 'Hacer', value: match.preMatchStrategy.thingsToDo },
-            { label: 'Evitar', value: match.preMatchStrategy.thingsToAvoid },
-            { label: 'Objetivo', value: match.preMatchStrategy.mainObjective },
-          ]}
-        />
+        <>
+          {hasSelectedZones(match.preMatchStrategy.targetZones) ? (
+            <TableZoneMap
+              selectedIds={match.preMatchStrategy.targetZones}
+              readOnly
+            />
+          ) : null}
+          <DetailBlock
+            title={isCoaching ? 'Plan para el compañero' : 'Pre-partido'}
+            fields={[
+              { label: 'Saques', value: match.preMatchStrategy.serves },
+              { label: 'Recepción', value: match.preMatchStrategy.receive },
+              {
+                label: 'Efectos y ritmo',
+                value: match.preMatchStrategy.effectsAndRhythm,
+              },
+              {
+                label: 'Ubicación',
+                value: match.preMatchStrategy.tablePlacement,
+              },
+              { label: 'Zonas', value: match.preMatchStrategy.targetAreas },
+              { label: 'Hacer', value: match.preMatchStrategy.thingsToDo },
+              { label: 'Evitar', value: match.preMatchStrategy.thingsToAvoid },
+              { label: 'Objetivo', value: match.preMatchStrategy.mainObjective },
+            ]}
+          />
+        </>
       ) : null}
 
       {hasFilledFields(match.duringMatchNotes) ? (
@@ -187,7 +197,7 @@ export default function MatchDetail({
         className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-slate-800 text-base font-semibold text-white"
       >
         <Pencil className="h-5 w-5" aria-hidden="true" />
-        {isCoaching ? 'Editar cocheo' : 'Editar partido'}
+        {isCoaching ? 'Editar coucheo' : 'Editar partido'}
       </button>
 
       {isConfirmingDelete ? (

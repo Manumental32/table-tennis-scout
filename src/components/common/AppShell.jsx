@@ -10,9 +10,9 @@ export default function AppShell({
   children,
 }) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col bg-slate-900">
+    <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden bg-slate-900">
       <Header title={title ?? getViewTitle(currentView)} />
-      <main id="app-content" className="flex-1 overflow-y-auto px-4 py-4">
+      <main id="app-content" className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {children}
       </main>
       {showNav ? <BottomNav currentView={currentView} onNavigate={onNavigate} /> : null}

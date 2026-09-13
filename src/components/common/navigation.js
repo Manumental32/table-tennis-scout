@@ -3,6 +3,7 @@ export const VIEWS = {
   RIVALS: 'rivals',
   MATCHES: 'matches',
   TOURNAMENT: 'tournament',
+  TRAININGS: 'trainings',
 }
 
 const VIEW_TITLES = {
@@ -10,6 +11,7 @@ const VIEW_TITLES = {
   [VIEWS.RIVALS]: 'Rivales',
   [VIEWS.MATCHES]: 'Partidos',
   [VIEWS.TOURNAMENT]: 'Torneo',
+  [VIEWS.TRAININGS]: 'Entrenar',
 }
 
 export function getViewTitle(view) {

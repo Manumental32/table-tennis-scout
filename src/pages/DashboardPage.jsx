@@ -1,26 +1,21 @@
-import { LayoutDashboard } from 'lucide-react'
-import { useState } from 'react'
+import { EllipsisVertical, LayoutDashboard } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
+import ScreenToolbar from '../components/common/ScreenToolbar'
 import PlayerProfileForm from '../components/player/PlayerProfileForm'
 import StatsView from '../components/stats/StatsView'
 import { useAuth } from '../hooks/useAuth'
+import { useBackHandler } from '../hooks/useBackNavigation'
 import { useMatches } from '../hooks/useMatches'
 import { usePlayerProfile } from '../hooks/usePlayerProfile'
 import { useRivals } from '../hooks/useRivals'
 import { useTeammates } from '../hooks/useTeammates'
 import { useTournament } from '../hooks/useTournament'
-import { TOURNAMENT_STATUS } from '../utils/constants'
-import { formatFixtureLine, formatTournamentDate, sortTournaments } from '../utils/tournaments'
-
-function getNextTournament(tournaments) {
-  return (
-    sortTournaments(tournaments).find(
-      (tournament) =>
-        tournament.status === TOURNAMENT_STATUS.CONFIRMED &&
-        tournament.fixture?.length > 0,
-    ) ?? null
-  )
-}
+import {
+  formatFixtureLine,
+  formatTournamentDate,
+  getNextTournament,
+} from '../utils/tournaments'
 
 export default function DashboardPage() {
   const { enabled, session, signOut } = useAuth()
@@ -30,6 +25,22 @@ export default function DashboardPage() {
   const { teammates } = useTeammates()
   const { tournaments } = useTournament()
   const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [isAccountOpen, setIsAccountOpen] = useState(false)
+  const handleHardwareBack = useCallback(() => {
+    if (isEditingProfile) {
+      setIsEditingProfile(false)
+      return true
+    }
+
+    if (isAccountOpen) {
+      setIsAccountOpen(false)
+      return true
+    }
+
+    return false
+  }, [isAccountOpen, isEditingProfile])
+
+  useBackHandler(handleHardwareBack)
   const nextTournament = getNextTournament(tournaments)
   const hasActivity =
     rivals.length > 0 ||
@@ -39,43 +50,76 @@ export default function DashboardPage() {
 
   if (isEditingProfile) {
     return (
-      <PlayerProfileForm
-        profile={profile}
-        description="Usamos este nombre para el ranking y para armar tu fixture."
-        submitLabel="Guardar"
-        onSubmit={(values) => {
-          saveProfile(values)
-          setIsEditingProfile(false)
-        }}
-      />
+      <>
+        <ScreenToolbar title="Tu perfil" onBack={() => setIsEditingProfile(false)} />
+        <PlayerProfileForm
+          profile={profile}
+          description="Usamos este nombre para el ranking y para armar tu fixture."
+          submitLabel="Guardar"
+          onSubmit={(values) => {
+            saveProfile(values)
+            setIsEditingProfile(false)
+          }}
+        />
+      </>
     )
   }
 
   return (
     <div className="space-y-4">
       <section className="rounded-2xl bg-slate-800 px-4 py-4">
-        <p className="text-sm text-slate-400">Hola</p>
-        <p className="mt-1 text-xl font-semibold text-white">{profile.name}</p>
-        {profile.club ? (
-          <p className="mt-1 text-sm text-slate-300">{profile.club}</p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setIsEditingProfile(true)}
-          className="mt-4 min-h-12 w-full rounded-xl bg-slate-700 text-sm font-medium text-white"
-        >
-          Cambiar mi nombre o club
-        </button>
-        {enabled && session ? (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-slate-400">Hola</p>
+            <div className="mt-1 flex items-baseline justify-between gap-3">
+              <p className="truncate text-xl font-semibold text-white">
+                {profile.name}
+              </p>
+              {profile.club ? (
+                <p className="shrink-0 text-sm text-slate-300">({profile.club})</p>
+              ) : null}
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => {
-              void signOut()
-            }}
-            className="mt-2 min-h-12 w-full rounded-xl bg-slate-700 text-sm font-medium text-slate-200"
+            onClick={() => setIsAccountOpen((current) => !current)}
+            aria-expanded={isAccountOpen}
+            aria-label="Opciones de cuenta"
+            className="flex min-h-10 min-w-10 items-center justify-center rounded-xl text-slate-400"
           >
-            Cerrar sesión
+            <EllipsisVertical className="h-5 w-5" aria-hidden="true" />
           </button>
+        </div>
+        {isAccountOpen ? (
+          <div className="mt-3 space-y-1 border-t border-slate-700 pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAccountOpen(false)
+                setIsEditingProfile(true)
+              }}
+              className="min-h-10 w-full rounded-lg px-1 text-left text-sm text-slate-300"
+            >
+              Cambiar nombre o club
+            </button>
+            {enabled && session ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAccountOpen(false)
+                  void signOut()
+                }}
+                className="min-h-10 w-full rounded-lg px-1 text-left text-sm text-slate-400"
+              >
+                {session.isDevSkip ? 'Salir de local' : 'Cerrar sesión'}
+              </button>
+            ) : null}
+            {session?.isDevSkip ? (
+              <p className="px-1 pt-1 text-xs leading-relaxed text-slate-500">
+                Estás en local. Este dispositivo no sincroniza con la nube.
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

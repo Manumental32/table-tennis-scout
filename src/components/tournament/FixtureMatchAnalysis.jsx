@@ -6,7 +6,9 @@ import {
   createPreMatchStrategy,
 } from '../../utils/dataModels'
 import { useStrategySuggestions } from '../../hooks/useStrategySuggestions'
+import { hasSelectedZones, sanitizeZoneIds } from '../../utils/tableZones'
 import { formatFixtureLine } from '../../utils/tournaments'
+import TableZoneMap from '../common/TableZoneMap'
 import { TextAreaField } from '../common/FormField'
 
 const SECTIONS = [
@@ -36,6 +38,9 @@ function getFormValues(match, rival) {
       thingsToDo: preMatchStrategy.thingsToDo || rival?.thingsToDo || '',
       thingsToAvoid: preMatchStrategy.thingsToAvoid || rival?.thingsToAvoid || '',
       mainObjective: preMatchStrategy.mainObjective || rival?.mainObjective || '',
+      targetZones: hasSelectedZones(preMatchStrategy.targetZones)
+        ? preMatchStrategy.targetZones
+        : sanitizeZoneIds(rival?.targetZones),
     },
     duringMatchNotes: createDuringMatchNotes(match?.duringMatchNotes),
     postMatchAnalysis: createPostMatchAnalysis(match?.postMatchAnalysis),
@@ -64,6 +69,17 @@ export default function FixtureMatchAnalysis({
       [sectionKey]: {
         ...current[sectionKey],
         [name]: value,
+      },
+    }))
+  }
+
+  function handleZonesChange(targetZones) {
+    setJustSaved(false)
+    setValues((current) => ({
+      ...current,
+      preMatchStrategy: {
+        ...current.preMatchStrategy,
+        targetZones,
       },
     }))
   }
@@ -107,6 +123,10 @@ export default function FixtureMatchAnalysis({
 
       {section === ANALYSIS_SECTION.PRE ? (
         <div className="space-y-4">
+          <TableZoneMap
+            selectedIds={values.preMatchStrategy.targetZones}
+            onChange={handleZonesChange}
+          />
           <TextAreaField
             label="Hacer"
             name="thingsToDo"

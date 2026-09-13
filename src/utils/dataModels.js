@@ -1,5 +1,7 @@
 import {
   BUILD,
+  DRILL_ACTION,
+  DRILL_ACTOR,
   GRIP,
   HAND,
   HEIGHT,
@@ -10,7 +12,9 @@ import {
   RHYTHM,
   RUBBER,
   TOURNAMENT_STATUS,
+  TRAINING_DRILL_KIND,
 } from './constants'
+import { parseZoneId, sanitizeZoneIds } from './tableZones'
 
 export function createId() {
   return crypto.randomUUID()
@@ -27,6 +31,7 @@ export function createPreMatchStrategy(overrides = {}) {
     thingsToAvoid: '',
     mainObjective: '',
     ...overrides,
+    targetZones: sanitizeZoneIds(overrides.targetZones),
   }
 }
 
@@ -100,6 +105,7 @@ export function createRival(overrides = {}) {
     mainObjective: '',
     generalNotes: '',
     ...overrides,
+    targetZones: sanitizeZoneIds(overrides.targetZones),
   }
 }
 
@@ -205,6 +211,68 @@ export function createPlayerProfile(overrides = {}) {
     name: '',
     club: '',
     ...overrides,
+  }
+}
+
+function sanitizePlayers(value) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.map((name) => String(name).trim()).filter(Boolean)
+}
+
+function isValidEnum(value, allowed) {
+  return Object.values(allowed).includes(value)
+}
+
+export function createDrillStep(overrides = {}) {
+  const zoneId = parseZoneId(overrides.zoneId) ? overrides.zoneId : ''
+
+  return {
+    actor: isValidEnum(overrides.actor, DRILL_ACTOR)
+      ? overrides.actor
+      : DRILL_ACTOR.A,
+    action: isValidEnum(overrides.action, DRILL_ACTION)
+      ? overrides.action
+      : DRILL_ACTION.DRIVE,
+    zoneId,
+    label: typeof overrides.label === 'string' ? overrides.label : '',
+  }
+}
+
+export function createTrainingDrill(overrides = {}) {
+  const { steps, kind, ...rest } = overrides
+
+  return {
+    id: createId(),
+    kind: isValidEnum(kind, TRAINING_DRILL_KIND)
+      ? kind
+      : TRAINING_DRILL_KIND.CONTINUOUS,
+    title: '',
+    durationLabel: '',
+    description: '',
+    ...rest,
+    steps: Array.isArray(steps) ? steps.map((step) => createDrillStep(step)) : [],
+  }
+}
+
+export function createTraining(overrides = {}) {
+  const { drills, players, ...rest } = overrides
+
+  return {
+    id: createId(),
+    name: '',
+    groupName: '',
+    notes: '',
+    rotation: '',
+    drillDurationLabel: '',
+    isCatalog: false,
+    ...rest,
+    players: sanitizePlayers(players),
+    drills: Array.isArray(drills)
+      ? drills.map((drill) => createTrainingDrill(drill))
+      : [],
   }
 }
 

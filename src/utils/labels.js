@@ -1,5 +1,7 @@
 import {
   BUILD,
+  DRILL_ACTION,
+  DRILL_ACTOR,
   GRIP,
   HAND,
   HEIGHT,
@@ -9,6 +11,7 @@ import {
   RHYTHM,
   RUBBER,
   TOURNAMENT_STATUS,
+  TRAINING_DRILL_KIND,
 } from './constants'
 
 export const HEIGHT_OPTIONS = [
@@ -80,6 +83,34 @@ export const TOURNAMENT_STATUS_OPTIONS = [
   { value: TOURNAMENT_STATUS.CONFIRMED, label: 'Confirmado' },
 ]
 
+export const TRAINING_DRILL_KIND_OPTIONS = [
+  { value: TRAINING_DRILL_KIND.WARMUP, label: 'Calentamiento' },
+  { value: TRAINING_DRILL_KIND.CONTINUOUS, label: 'Continuo' },
+  { value: TRAINING_DRILL_KIND.SERVE, label: 'Con saque' },
+]
+
+export const DRILL_ACTOR_OPTIONS = [
+  { value: DRILL_ACTOR.A, label: 'Jugador A' },
+  { value: DRILL_ACTOR.B, label: 'Jugador B' },
+]
+
+export const DRILL_ACTION_OPTIONS = [
+  { value: DRILL_ACTION.SERVE, label: 'Saque' },
+  { value: DRILL_ACTION.RECEIVE, label: 'Recepción' },
+  { value: DRILL_ACTION.DRIVE, label: 'Drive' },
+  { value: DRILL_ACTION.BACKHAND, label: 'Revés' },
+  { value: DRILL_ACTION.BLOCK, label: 'Bloqueo' },
+  { value: DRILL_ACTION.TOP, label: 'Top' },
+  { value: DRILL_ACTION.PIVOT, label: 'Pívot' },
+  { value: DRILL_ACTION.CHOP, label: 'Corte' },
+  { value: DRILL_ACTION.FLAT, label: 'Plano' },
+  { value: DRILL_ACTION.FREE, label: 'Punto libre' },
+]
+
 export function getOptionLabel(options, value) {
   return options.find((option) => option.value === value)?.label ?? 'Sin dato'
+}
+
+export function getDrillActionLabel(action) {
+  return getOptionLabel(DRILL_ACTION_OPTIONS, action)
 }

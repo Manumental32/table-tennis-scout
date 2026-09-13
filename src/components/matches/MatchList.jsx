@@ -23,7 +23,7 @@ export default function MatchList({
         const score = match.score || formatScore(match.sets)
         const title = getMatchTitle(match, rival, teammate)
         const subtitle = [
-          isCoachedMatch(match) ? 'Cocheo' : '',
+          isCoachedMatch(match) ? 'Coucheo' : '',
           isCoachedMatch(match) && rival?.name ? `vs ${rival.name}` : '',
           formatMatchDate(match.date),
           score,

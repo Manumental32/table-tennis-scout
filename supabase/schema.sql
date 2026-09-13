@@ -1,4 +1,4 @@
--- Scout TT: store per user, one row per storage key (rivals, matches, ...).
+-- Scout TT: store per user, one row per storage key (rivals, matches, trainings, ...).
 -- Run this in the Supabase SQL editor.
 
 create table if not exists public.user_store (

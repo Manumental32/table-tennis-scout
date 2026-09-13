@@ -77,3 +77,27 @@ export const ANALYSIS_SECTION = {
   DURING: 'during',
   POST: 'post',
 }
+
+export const TRAINING_DRILL_KIND = {
+  WARMUP: 'warmup',
+  CONTINUOUS: 'continuous',
+  SERVE: 'serve',
+}
+
+export const DRILL_ACTOR = {
+  A: 'A',
+  B: 'B',
+}
+
+export const DRILL_ACTION = {
+  SERVE: 'serve',
+  RECEIVE: 'receive',
+  DRIVE: 'drive',
+  BACKHAND: 'backhand',
+  BLOCK: 'block',
+  TOP: 'top',
+  PIVOT: 'pivot',
+  CHOP: 'chop',
+  FLAT: 'flat',
+  FREE: 'free',
+}

@@ -16,20 +16,32 @@ function SuggestionList({ items, onPick }) {
 
   return (
     <ul className="mt-2 space-y-1">
-      {items.map((item) => (
-        <li key={item}>
-          <button
-            type="button"
-            onMouseDown={(event) => {
-              event.preventDefault()
-              onPick(item)
-            }}
-            className="min-h-11 w-full rounded-xl bg-slate-700 px-3 text-left text-sm text-white"
-          >
-            {item}
-          </button>
-        </li>
-      ))}
+      {items.map((item) => {
+        const isObject = typeof item === 'object' && item !== null
+        const key = isObject ? item.id : item
+        const label = isObject ? item.label : item
+        const subtitle = isObject ? item.subtitle : ''
+
+        return (
+          <li key={key}>
+            <button
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault()
+                onPick(item)
+              }}
+              className="min-h-11 w-full rounded-xl bg-slate-700 px-3 py-2 text-left"
+            >
+              <span className="block text-sm text-white">{label}</span>
+              {subtitle ? (
+                <span className="mt-0.5 block text-xs text-slate-400">
+                  {subtitle}
+                </span>
+              ) : null}
+            </button>
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -40,6 +52,8 @@ export function TextField({
   phrases = [],
   fieldName,
   type = 'text',
+  suggestionItems,
+  onPickSuggestion,
   ...props
 }) {
   const [isFocused, setIsFocused] = useState(false)
@@ -47,19 +61,25 @@ export function TextField({
   const isSecret = type === 'password'
   const inputType = isSecret && isSecretVisible ? 'text' : type
   const query = String(props.value ?? '')
-  const visibleSuggestions =
-    isFocused && phrases.length > 0
+  const visibleSuggestions = suggestionItems
+    ? suggestionItems
+    : isFocused && phrases.length > 0
       ? filterSuggestions(phrases, fieldName ?? props.name, query)
       : []
 
-  function pickSuggestion(phrase) {
+  function pickSuggestion(item) {
+    if (suggestionItems) {
+      onPickSuggestion?.(item)
+      return
+    }
+
     props.onChange?.({
-      target: { name: props.name, value: phrase },
+      target: { name: props.name, value: item },
     })
   }
 
   return (
-    <label className="block">
+    <label className="block [&:focus-within_.suggestion-panel]:block">
       <span className="mb-2 block text-sm font-medium text-slate-300">
         {label}
       </span>
@@ -92,7 +112,9 @@ export function TextField({
           </button>
         ) : null}
       </span>
-      <SuggestionList items={visibleSuggestions} onPick={pickSuggestion} />
+      <div className={suggestionItems ? 'suggestion-panel hidden' : undefined}>
+        <SuggestionList items={visibleSuggestions} onPick={pickSuggestion} />
+      </div>
       {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
     </label>
   )

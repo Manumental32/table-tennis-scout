@@ -1,16 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import AuthForm from './components/auth/AuthForm'
 import AppShell from './components/common/AppShell'
 import { VIEWS } from './components/common/navigation'
 import PlayerProfileForm from './components/player/PlayerProfileForm'
 import { useAuth } from './hooks/useAuth'
+import { useBackFallback, useLockHardwareBack } from './hooks/useBackNavigation'
 import { usePlayerProfile } from './hooks/usePlayerProfile'
 import { useTournament } from './hooks/useTournament'
 import DashboardPage from './pages/DashboardPage'
 import MatchesPage from './pages/MatchesPage'
 import RivalsPage from './pages/RivalsPage'
 import TournamentPage from './pages/TournamentPage'
+import TrainingsPage from './pages/TrainingsPage'
 import { getRemoteConfigError } from './services/supabase/client'
 import { suggestPlayerProfile } from './utils/player'
 
@@ -19,6 +21,7 @@ const PAGES = {
   [VIEWS.RIVALS]: RivalsPage,
   [VIEWS.MATCHES]: MatchesPage,
   [VIEWS.TOURNAMENT]: TournamentPage,
+  [VIEWS.TRAININGS]: TrainingsPage,
 }
 
 function AppContent() {
@@ -26,6 +29,11 @@ function AppContent() {
   const { saveProfile, hasProfile } = usePlayerProfile()
   const { tournaments } = useTournament()
   const Page = PAGES[currentView] ?? DashboardPage
+  const goHome = useCallback(() => {
+    setCurrentView(VIEWS.DASHBOARD)
+  }, [])
+
+  useBackFallback(goHome)
 
   if (!hasProfile) {
     const suggestedProfile = suggestPlayerProfile(tournaments)
@@ -61,6 +69,7 @@ function AppContent() {
 
 export default function App() {
   const auth = useAuth()
+  useLockHardwareBack()
 
   if (!auth.ready) {
     return (
@@ -76,6 +85,8 @@ export default function App() {
         <AuthForm
           onSignIn={auth.signIn}
           onSignUp={auth.signUp}
+          onEnterLocal={auth.enterLocalDev}
+          allowLocalDev={auth.canSkipLocal}
           configError={getRemoteConfigError()}
         />
       </AppShell>

@@ -14,7 +14,7 @@ export default function MatchPage({
   return (
     <>
       <ScreenToolbar
-        title={isCoachedMatch(match) ? 'Cocheo' : 'Partido'}
+        title={isCoachedMatch(match) ? 'Coucheo' : 'Partido'}
         onBack={onBack}
       />
       <MatchDetail

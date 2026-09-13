@@ -18,7 +18,13 @@ function getSubmitLabel(isSubmitting, isSignIn) {
   return 'Crear cuenta'
 }
 
-export default function AuthForm({ onSignIn, onSignUp, configError }) {
+export default function AuthForm({
+  onSignIn,
+  onSignUp,
+  onEnterLocal,
+  allowLocalDev = false,
+  configError,
+}) {
   const [mode, setMode] = useState(MODES.SIGN_IN)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -145,6 +151,21 @@ export default function AuthForm({ onSignIn, onSignUp, configError }) {
       >
         {getSubmitLabel(isSubmitting, isSignIn)}
       </button>
+
+      {allowLocalDev ? (
+        <>
+          <button
+            type="button"
+            onClick={onEnterLocal}
+            className="min-h-12 w-full rounded-xl bg-slate-800 text-sm font-medium text-slate-200"
+          >
+            Entrar en local
+          </button>
+          <p className="text-xs leading-relaxed text-slate-500">
+            Solo aparece en localhost. No sincroniza con la nube.
+          </p>
+        </>
+      ) : null}
     </form>
   )
 }

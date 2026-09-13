@@ -92,15 +92,21 @@ export function collectStrategyPhrases(rivals = [], matches = []) {
     addPhrase(bag, match.notes, 'notes')
 
     for (const [fieldName, value] of Object.entries(match.preMatchStrategy ?? {})) {
-      addPhrase(bag, value, fieldName)
+      if (typeof value === 'string') {
+        addPhrase(bag, value, fieldName)
+      }
     }
 
     for (const [fieldName, value] of Object.entries(match.duringMatchNotes ?? {})) {
-      addPhrase(bag, value, fieldName)
+      if (typeof value === 'string') {
+        addPhrase(bag, value, fieldName)
+      }
     }
 
     for (const [fieldName, value] of Object.entries(match.postMatchAnalysis ?? {})) {
-      addPhrase(bag, value, fieldName)
+      if (typeof value === 'string') {
+        addPhrase(bag, value, fieldName)
+      }
     }
   }
 
@@ -128,7 +134,7 @@ function getMatchStrategyTexts(match) {
     ...Object.values(match.duringMatchNotes ?? {}),
     ...Object.values(match.postMatchAnalysis ?? {}),
     match.notes,
-  ]
+  ].filter((value) => typeof value === 'string')
 }
 
 export function scorePhrasesByResult(matches = []) {

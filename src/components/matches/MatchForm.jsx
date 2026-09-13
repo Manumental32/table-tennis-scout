@@ -12,11 +12,23 @@ import { useStrategySuggestions } from '../../hooks/useStrategySuggestions'
 import {
   fromDateInputValue,
   getMatchKind,
+  getResultFromSets,
+  getSetScoreHint,
   hasFilledFields,
+  isClosedSet,
   isCoachedMatch,
   parseSetScore,
   toDateInputValue,
 } from '../../utils/matches'
+import {
+  collectRankingCandidates,
+  collectRankingClubs,
+  toRankingClubSuggestions,
+  toRankingNameSuggestions,
+} from '../../utils/rivals'
+import { normalizeName } from '../../utils/tournaments'
+import { hasSelectedZones } from '../../utils/tableZones'
+import TableZoneMap from '../common/TableZoneMap'
 import {
   CONTROL_CLASS,
   FormSection,
@@ -25,23 +37,55 @@ import {
   TextAreaField,
   TextField,
 } from '../common/FormField'
+import SetScoreField from './SetScoreField'
 
-const NEW_TEAMMATE_VALUE = '__new__'
 const EMPTY_SET = { playerScore: '', opponentScore: '', notes: '' }
 
-function getFormValues(match, kind) {
+function getKnownPersonSuggestions(people, query) {
+  const normalizedQuery = query.trim().toLowerCase()
+
+  if (!normalizedQuery) {
+    return []
+  }
+
+  return people
+    .filter((person) => {
+      const name = person.name.toLowerCase()
+      const club = (person.club ?? '').toLowerCase()
+      return name.includes(normalizedQuery) || club.includes(normalizedQuery)
+    })
+    .filter((person) => normalizeName(person.name) !== normalizeName(query))
+    .slice(0, 8)
+    .map((person) => ({
+      id: person.id,
+      label: person.name,
+      subtitle: person.club,
+      value: {
+        id: person.id,
+        name: person.name,
+        club: person.club ?? '',
+      },
+    }))
+}
+
+function getFormValues(match, kind, teammates = [], rivals = []) {
   const values = createMatch({
     ...(match ?? {}),
     kind: match ? getMatchKind(match) : kind,
   })
+  const teammate =
+    teammates.find((item) => item.id === values.teammateId) ?? null
+  const rival = rivals.find((item) => item.id === values.rivalId) ?? null
 
   return {
     ...values,
     rivalId: values.rivalId ?? '',
     teammateId: values.teammateId ?? '',
     tournamentId: values.tournamentId ?? '',
-    newTeammateName: '',
-    newTeammateClub: '',
+    newTeammateName: teammate?.name ?? '',
+    newTeammateClub: teammate?.club ?? '',
+    newRivalName: rival?.name ?? '',
+    newRivalClub: rival?.club ?? '',
     date: toDateInputValue(values.date),
     sets:
       values.sets.length > 0
@@ -60,33 +104,58 @@ export default function MatchForm({
   rivals,
   teammates,
   tournaments,
+  playerName = '',
   onSubmit,
   submitLabel,
 }) {
-  const [values, setValues] = useState(() => getFormValues(match, kind))
+  const [values, setValues] = useState(() =>
+    getFormValues(match, kind, teammates, rivals),
+  )
   const [formError, setFormError] = useState('')
   const phrases = useStrategySuggestions()
   const isCoaching = isCoachedMatch(values)
-
-  const rivalOptions = [
-    {
-      value: '',
-      label: isCoaching ? 'Rival del compañero (opcional)' : 'Elegí un rival',
-    },
-    ...rivals.map((rival) => ({
-      value: rival.id,
-      label: rival.club ? `${rival.name} · ${rival.club}` : rival.name,
-    })),
-  ]
-
-  const teammateOptions = [
-    { value: '', label: 'Elegí un compañero' },
-    ...teammates.map((teammate) => ({
-      value: teammate.id,
-      label: teammate.club ? `${teammate.name} · ${teammate.club}` : teammate.name,
-    })),
-    { value: NEW_TEAMMATE_VALUE, label: 'Nuevo compañero' },
-  ]
+  const inferredResult = getResultFromSets(values.sets)
+  const result =
+    inferredResult === MATCH_RESULT.UNKNOWN ? values.result : inferredResult
+  const playerLabel = isCoaching
+    ? values.newTeammateName.trim() || 'Compañero'
+    : playerName.trim() || 'Vos'
+  const rivalLabel = values.newRivalName.trim() || 'Rival'
+  const rankingCandidates = collectRankingCandidates(
+    tournaments,
+    rivals,
+    playerName,
+  )
+  const teammateRankingCandidates = collectRankingCandidates(
+    tournaments,
+    teammates,
+    playerName,
+  )
+  const rankingClubs = collectRankingClubs(tournaments)
+  const teammateNameSuggestions = [
+    ...getKnownPersonSuggestions(teammates, values.newTeammateName),
+    ...toRankingNameSuggestions(
+      teammateRankingCandidates,
+      values.newTeammateName,
+      values.tournamentId,
+    ),
+  ].slice(0, 8)
+  const teammateClubSuggestions = toRankingClubSuggestions(
+    rankingClubs,
+    values.newTeammateClub,
+  )
+  const rivalNameSuggestions = [
+    ...getKnownPersonSuggestions(rivals, values.newRivalName),
+    ...toRankingNameSuggestions(
+      rankingCandidates,
+      values.newRivalName,
+      values.tournamentId,
+    ),
+  ].slice(0, 8)
+  const rivalClubSuggestions = toRankingClubSuggestions(
+    rankingClubs,
+    values.newRivalClub,
+  )
 
   const tournamentOptions = [
     { value: '', label: 'Sin torneo' },
@@ -108,33 +177,83 @@ export default function MatchForm({
     }
   }
 
-  function handleRivalChange(event) {
-    const rivalId = event.target.value
-    const selectedRival = rivals.find((rival) => rival.id === rivalId)
-
+  function handlePickTeammateName(item) {
+    const candidate = item.value
     setValues((currentValues) => ({
       ...currentValues,
-      rivalId,
+      newTeammateName: candidate.name,
+      newTeammateClub: candidate.club || currentValues.newTeammateClub,
+    }))
+
+    if (formError) {
+      setFormError('')
+    }
+  }
+
+  function handlePickTeammateClub(item) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      newTeammateClub: item.value,
+    }))
+  }
+
+  function applyRivalSelection(rival) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      rivalId: rival.id,
+      newRivalName: rival.name,
+      newRivalClub: rival.club ?? '',
       preMatchStrategy: createPreMatchStrategy({
         ...currentValues.preMatchStrategy,
         thingsToDo:
-          currentValues.preMatchStrategy.thingsToDo ||
-          selectedRival?.thingsToDo ||
-          '',
+          currentValues.preMatchStrategy.thingsToDo || rival.thingsToDo || '',
         thingsToAvoid:
           currentValues.preMatchStrategy.thingsToAvoid ||
-          selectedRival?.thingsToAvoid ||
+          rival.thingsToAvoid ||
           '',
         mainObjective:
           currentValues.preMatchStrategy.mainObjective ||
-          selectedRival?.mainObjective ||
+          rival.mainObjective ||
           '',
+        targetZones: hasSelectedZones(currentValues.preMatchStrategy.targetZones)
+          ? currentValues.preMatchStrategy.targetZones
+          : rival.targetZones,
       }),
     }))
 
     if (formError) {
       setFormError('')
     }
+  }
+
+  function handlePickRivalName(item) {
+    const candidate = item.value
+    const existingRival = candidate.id
+      ? rivals.find((rival) => rival.id === candidate.id)
+      : null
+
+    if (existingRival) {
+      applyRivalSelection(existingRival)
+      return
+    }
+
+    setValues((currentValues) => ({
+      ...currentValues,
+      rivalId: '',
+      newRivalName: candidate.name,
+      newRivalClub: candidate.club || currentValues.newRivalClub,
+    }))
+
+    if (formError) {
+      setFormError('')
+    }
+  }
+
+  function handlePickRivalClub(item) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      newRivalClub: item.value,
+    }))
   }
 
   function handleStrategyChange(section, event) {
@@ -144,6 +263,16 @@ export default function MatchForm({
       [section]: {
         ...currentValues[section],
         [name]: value,
+      },
+    }))
+  }
+
+  function handleZonesChange(targetZones) {
+    setValues((currentValues) => ({
+      ...currentValues,
+      preMatchStrategy: {
+        ...currentValues.preMatchStrategy,
+        targetZones,
       },
     }))
   }
@@ -191,15 +320,12 @@ export default function MatchForm({
     event.preventDefault()
 
     if (isCoaching) {
-      const isNewTeammate = values.teammateId === NEW_TEAMMATE_VALUE
-      const newName = values.newTeammateName.trim()
-
-      if (!values.teammateId || (isNewTeammate && !newName)) {
+      if (!values.newTeammateName.trim()) {
         setFormError('Elegí o cargá un compañero')
         return
       }
-    } else if (!values.rivalId) {
-      setFormError('Elegí un rival')
+    } else if (!values.newRivalName.trim()) {
+      setFormError('Elegí un rival o cargalo a mano')
       return
     }
 
@@ -213,22 +339,38 @@ export default function MatchForm({
       )
       .filter((set) => set.playerScore > 0 || set.opponentScore > 0 || set.notes)
 
-    const { newTeammateName, newTeammateClub, ...matchValues } = values
+    const submittedResult = getResultFromSets(sets)
+    const {
+      newTeammateName,
+      newTeammateClub,
+      newRivalName,
+      newRivalClub,
+      ...matchValues
+    } = values
 
     onSubmit({
       ...matchValues,
       kind: getMatchKind(values),
       tournamentId: values.tournamentId || null,
-      rivalId: values.rivalId || null,
-      teammateId: isCoaching ? values.teammateId : null,
-      newTeammate:
-        isCoaching && values.teammateId === NEW_TEAMMATE_VALUE
-          ? {
-              name: newTeammateName.trim(),
-              club: newTeammateClub.trim(),
-            }
-          : null,
+      rivalId: null,
+      teammateId: null,
+      newRival: newRivalName.trim()
+        ? {
+            name: newRivalName.trim(),
+            club: newRivalClub.trim(),
+          }
+        : null,
+      newTeammate: isCoaching
+        ? {
+            name: newTeammateName.trim(),
+            club: newTeammateClub.trim(),
+          }
+        : null,
       date: fromDateInputValue(values.date),
+      result:
+        submittedResult === MATCH_RESULT.UNKNOWN
+          ? values.result
+          : submittedResult,
       sets,
       score: sets
         .map((set) => `${set.playerScore}-${set.opponentScore}`)
@@ -242,54 +384,31 @@ export default function MatchForm({
 
   return (
     <form className="space-y-8 pb-6" onSubmit={handleSubmit}>
-      <FormSection title={isCoaching ? 'Cocheo' : 'Partido'}>
+      <FormSection title={isCoaching ? 'Coucheo' : 'Partido'}>
         {isCoaching ? (
           <>
-            <SelectField
+            <TextField
               label="Compañero"
-              name="teammateId"
-              value={values.teammateId}
+              name="newTeammateName"
+              value={values.newTeammateName}
               onChange={handleChange}
-              options={teammateOptions}
+              placeholder="Nombre"
+              autoComplete="off"
+              suggestionItems={teammateNameSuggestions}
+              onPickSuggestion={handlePickTeammateName}
             />
-            {values.teammateId === NEW_TEAMMATE_VALUE ? (
-              <>
-                <TextField
-                  label="Nombre del compañero"
-                  name="newTeammateName"
-                  value={values.newTeammateName}
-                  onChange={handleChange}
-                  placeholder="Nombre"
-                  autoComplete="off"
-                />
-                <TextField
-                  label="Club"
-                  name="newTeammateClub"
-                  value={values.newTeammateClub}
-                  onChange={handleChange}
-                  placeholder="Opcional"
-                  autoComplete="off"
-                />
-              </>
-            ) : null}
-            <SelectField
-              label="Rival al que se enfrentó"
-              name="rivalId"
-              value={values.rivalId}
-              onChange={handleRivalChange}
-              options={rivalOptions}
+            <TextField
+              label="Club"
+              name="newTeammateClub"
+              value={values.newTeammateClub}
+              onChange={handleChange}
+              placeholder="Opcional"
+              autoComplete="off"
+              suggestionItems={teammateClubSuggestions}
+              onPickSuggestion={handlePickTeammateClub}
             />
           </>
-        ) : (
-          <SelectField
-            label="Rival"
-            name="rivalId"
-            value={values.rivalId}
-            onChange={handleRivalChange}
-            options={rivalOptions}
-          />
-        )}
-        {formError ? <p className="text-sm text-red-400">{formError}</p> : null}
+        ) : null}
 
         {tournaments.length > 0 ? (
           <SelectField
@@ -302,79 +421,54 @@ export default function MatchForm({
         ) : null}
 
         <TextField
+          label={isCoaching ? 'Rival al que se enfrentó' : 'Rival'}
+          name="newRivalName"
+          value={values.newRivalName}
+          onChange={handleChange}
+          placeholder="Nombre"
+          autoComplete="off"
+          suggestionItems={rivalNameSuggestions}
+          onPickSuggestion={handlePickRivalName}
+        />
+        <TextField
+          label="Club del rival"
+          name="newRivalClub"
+          value={values.newRivalClub}
+          onChange={handleChange}
+          placeholder="Opcional"
+          autoComplete="off"
+          suggestionItems={rivalClubSuggestions}
+          onPickSuggestion={handlePickRivalClub}
+        />
+        {formError ? <p className="text-sm text-red-400">{formError}</p> : null}
+
+        <TextField
           label="Fecha"
           name="date"
           type="date"
           value={values.date}
           onChange={handleChange}
         />
-
-        <div>
-          <p className="mb-2 text-sm font-medium text-slate-300">
-            {isCoaching ? 'Resultado del compañero' : 'Resultado'}
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => handleResultChange(MATCH_RESULT.WIN)}
-              className={`min-h-14 rounded-2xl text-base font-semibold ${
-                values.result === MATCH_RESULT.WIN
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              Victoria
-            </button>
-            <button
-              type="button"
-              onClick={() => handleResultChange(MATCH_RESULT.LOSS)}
-              className={`min-h-14 rounded-2xl text-base font-semibold ${
-                values.result === MATCH_RESULT.LOSS
-                  ? 'bg-red-600 text-white'
-                  : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              Derrota
-            </button>
-          </div>
-        </div>
       </FormSection>
 
       <FormSection title="Sets">
+        <p className="text-sm text-slate-400">
+          A 11. Si hay deuce, 12-10, 13-11, 14-12.
+        </p>
         <div className="space-y-4">
-          {values.sets.map((set, index) => (
+          {values.sets.map((set, index) => {
+            const closed = isClosedSet(set.playerScore, set.opponentScore)
+            const scoreHint = getSetScoreHint(set.playerScore, set.opponentScore)
+            const playerWins =
+              closed &&
+              parseSetScore(set.playerScore) > parseSetScore(set.opponentScore)
+
+            return (
             <div key={`set-${index}`} className="space-y-3 rounded-2xl bg-slate-800 p-3">
-              <div className="flex items-end gap-3">
-                <label className="flex-1">
-                  <span className="mb-2 block text-sm font-medium text-slate-300">
-                    Set {index + 1} · {isCoaching ? 'Compañero' : 'Vos'}
-                  </span>
-                  <input
-                    inputMode="numeric"
-                    value={set.playerScore}
-                    onChange={(event) =>
-                      handleSetChange(index, 'playerScore', event.target.value)
-                    }
-                    className={CONTROL_CLASS}
-                  />
-                </label>
-                <label className="flex-1">
-                  <span className="mb-2 block text-sm font-medium text-slate-300">
-                    Rival
-                  </span>
-                  <input
-                    inputMode="numeric"
-                    value={set.opponentScore}
-                    onChange={(event) =>
-                      handleSetChange(
-                        index,
-                        'opponentScore',
-                        event.target.value,
-                      )
-                    }
-                    className={CONTROL_CLASS}
-                  />
-                </label>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+                  Set {index + 1}
+                </p>
                 <button
                   type="button"
                   onClick={() => removeSet(index)}
@@ -384,6 +478,27 @@ export default function MatchForm({
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <SetScoreField
+                  label={playerLabel}
+                  value={set.playerScore}
+                  isWinner={playerWins}
+                  onChange={(value) =>
+                    handleSetChange(index, 'playerScore', value)
+                  }
+                />
+                <SetScoreField
+                  label={rivalLabel}
+                  value={set.opponentScore}
+                  isWinner={closed && !playerWins}
+                  onChange={(value) =>
+                    handleSetChange(index, 'opponentScore', value)
+                  }
+                />
+              </div>
+              {scoreHint ? (
+                <p className="text-sm text-amber-400">{scoreHint}</p>
+              ) : null}
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-slate-300">
                   Nota del set
@@ -398,7 +513,8 @@ export default function MatchForm({
                 />
               </label>
             </div>
-          ))}
+            )
+          })}
         </div>
         <button
           type="button"
@@ -447,6 +563,10 @@ export default function MatchForm({
           value={values.preMatchStrategy.effectsAndRhythm}
           onChange={(event) => handleStrategyChange('preMatchStrategy', event)}
           phrases={phrases}
+        />
+        <TableZoneMap
+          selectedIds={values.preMatchStrategy.targetZones}
+          onChange={handleZonesChange}
         />
         <TextAreaField
           label="Ubicación en la mesa"
@@ -569,6 +689,36 @@ export default function MatchForm({
           phrases={phrases}
         />
       </OptionalSection>
+
+      <div>
+        <p className="mb-2 text-sm font-medium text-slate-300">
+          {isCoaching ? 'Resultado del compañero' : 'Resultado'}
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleResultChange(MATCH_RESULT.WIN)}
+            className={`min-h-14 rounded-2xl text-base font-semibold ${
+              result === MATCH_RESULT.WIN
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-800 text-slate-300'
+            }`}
+          >
+            Victoria
+          </button>
+          <button
+            type="button"
+            onClick={() => handleResultChange(MATCH_RESULT.LOSS)}
+            className={`min-h-14 rounded-2xl text-base font-semibold ${
+              result === MATCH_RESULT.LOSS
+                ? 'bg-red-600 text-white'
+                : 'bg-slate-800 text-slate-300'
+            }`}
+          >
+            Derrota
+          </button>
+        </div>
+      </div>
 
       <button
         type="submit"

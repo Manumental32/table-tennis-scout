@@ -1,11 +1,12 @@
 import { Plus, Search, Swords, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import MatchForm from '../components/matches/MatchForm'
 import MatchList from '../components/matches/MatchList'
-import { VIEWS } from '../components/common/navigation'
+import { useBackHandler } from '../hooks/useBackNavigation'
 import { useMatches } from '../hooks/useMatches'
+import { usePlayerProfile } from '../hooks/usePlayerProfile'
 import { useRivals } from '../hooks/useRivals'
 import { useTeammates } from '../hooks/useTeammates'
 import { useTournament } from '../hooks/useTournament'
@@ -16,6 +17,8 @@ import {
   isCoachedMatch,
   sortMatchesByDate,
 } from '../utils/matches'
+import { findRivalByName } from '../utils/rivals'
+import { namesMatch } from '../utils/tournaments'
 import MatchPage from './MatchPage'
 
 const SCREENS = {
@@ -30,10 +33,11 @@ const LIST_FILTERS = {
   COACHED: 'coached',
 }
 
-export default function MatchesPage({ onNavigate }) {
+export default function MatchesPage() {
   const { matches, addMatch, updateMatch, removeMatch, getMatchById } =
     useMatches()
-  const { rivals, getRivalById } = useRivals()
+  const { rivals, addRival, getRivalById } = useRivals()
+  const { profile } = usePlayerProfile()
   const { teammates, addTeammate, getTeammateById } = useTeammates()
   const { tournaments, getTournamentById } = useTournament()
   const [screen, setScreen] = useState(SCREENS.LIST)
@@ -73,17 +77,29 @@ export default function MatchesPage({ onNavigate }) {
     document.getElementById('app-content')?.scrollTo({ top: 0 })
   }, [screen])
 
+  const handleHardwareBack = useCallback(() => {
+    if (screen === SCREENS.FORM && selectedMatchId) {
+      setScreen(SCREENS.DETAIL)
+      return true
+    }
+
+    if (screen === SCREENS.FORM || screen === SCREENS.DETAIL) {
+      setScreen(SCREENS.LIST)
+      setSelectedMatchId(null)
+      return true
+    }
+
+    return false
+  }, [screen, selectedMatchId])
+
+  useBackHandler(handleHardwareBack)
+
   function openList() {
     setScreen(SCREENS.LIST)
     setSelectedMatchId(null)
   }
 
   function openCreate(kind) {
-    if (kind === MATCH_KIND.OWN && rivals.length === 0) {
-      onNavigate?.(VIEWS.RIVALS)
-      return
-    }
-
     setFormKind(kind)
     setSelectedMatchId(null)
     setScreen(SCREENS.FORM)
@@ -95,17 +111,26 @@ export default function MatchesPage({ onNavigate }) {
   }
 
   function handleSave(values) {
-    const { newTeammate, ...matchValues } = values
+    const { newTeammate, newRival, ...matchValues } = values
     let teammateId = matchValues.teammateId
+    let rivalId = matchValues.rivalId
 
     if (newTeammate?.name) {
-      const createdTeammate = addTeammate(newTeammate)
-      teammateId = createdTeammate.id
+      const existingTeammate = teammates.find((teammate) =>
+        namesMatch(teammate.name, newTeammate.name),
+      )
+      teammateId = existingTeammate?.id ?? addTeammate(newTeammate).id
+    }
+
+    if (newRival?.name) {
+      const existingRival = findRivalByName(rivals, newRival.name)
+      rivalId = existingRival?.id ?? addRival(newRival).id
     }
 
     const payload = {
       ...matchValues,
       teammateId: teammateId || null,
+      rivalId: rivalId || null,
     }
 
     if (selectedMatch) {
@@ -138,10 +163,10 @@ export default function MatchesPage({ onNavigate }) {
           title={
             selectedMatch
               ? isCoaching
-                ? 'Editar cocheo'
+                ? 'Editar coucheo'
                 : 'Editar partido'
               : isCoaching
-                ? 'Cochear compañero'
+                ? 'Couchear compañero'
                 : 'Nuevo partido'
           }
           onBack={selectedMatch ? () => setScreen(SCREENS.DETAIL) : openList}
@@ -152,8 +177,9 @@ export default function MatchesPage({ onNavigate }) {
           rivals={rivals}
           teammates={teammates}
           tournaments={tournaments}
+          playerName={profile.name}
           onSubmit={handleSave}
-          submitLabel={selectedMatch ? 'Guardar cambios' : isCoaching ? 'Guardar cocheo' : 'Registrar partido'}
+          submitLabel={selectedMatch ? 'Guardar cambios' : isCoaching ? 'Guardar coucheo' : 'Registrar partido'}
         />
       </>
     )
@@ -188,14 +214,14 @@ export default function MatchesPage({ onNavigate }) {
         onClick={() => openCreate(MATCH_KIND.COACHED)}
         className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-slate-800 text-base font-semibold text-white"
       >
-        Cochear compañero
+        Couchear compañero
       </button>
 
       {matches.length === 0 ? (
         <EmptyState
           icon={rivals.length === 0 ? Users : Swords}
           title="Sin registros todavía"
-          description="Cargá un partido tuyo o el cocheo de un compañero del club."
+          description="Cargá un partido tuyo o el coucheo de un compañero del club."
         />
       ) : (
         <>
@@ -203,7 +229,7 @@ export default function MatchesPage({ onNavigate }) {
             {[
               { id: LIST_FILTERS.ALL, label: 'Todos' },
               { id: LIST_FILTERS.OWN, label: 'Míos' },
-              { id: LIST_FILTERS.COACHED, label: 'Cocheo' },
+              { id: LIST_FILTERS.COACHED, label: 'Coucheo' },
             ].map((filter) => (
               <button
                 key={filter.id}

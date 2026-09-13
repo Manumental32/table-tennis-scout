@@ -3,8 +3,43 @@ import { TOURNAMENT_STATUS } from './constants'
 import { TOURNAMENT_STATUS_OPTIONS, getOptionLabel } from './labels'
 import { formatMatchDate } from './matches'
 
+function toDayKey(dateValue) {
+  const parsedDate = new Date(dateValue)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return ''
+  }
+
+  const year = parsedDate.getFullYear()
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function formatTournamentDate(dateValue) {
   return formatMatchDate(dateValue)
+}
+
+export function isUpcomingTournament(tournament, now = new Date()) {
+  const tournamentDay = toDayKey(tournament?.date)
+  return Boolean(tournamentDay) && tournamentDay >= toDayKey(now)
+}
+
+export function getNextTournament(tournaments = [], now = new Date()) {
+  return (
+    tournaments
+      .filter(
+        (tournament) =>
+          tournament.status === TOURNAMENT_STATUS.CONFIRMED &&
+          tournament.fixture?.length > 0 &&
+          isUpcomingTournament(tournament, now),
+      )
+      .sort((left, right) => {
+        const leftTime = new Date(left.date || 0).getTime()
+        const rightTime = new Date(right.date || 0).getTime()
+        return leftTime - rightTime
+      })[0] ?? null
+  )
 }
 
 export function getTournamentStatusLabel(status) {
