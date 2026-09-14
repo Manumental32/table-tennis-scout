@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   TEAMMATES: 'teammates',
   TOURNAMENTS: 'tournaments',
   TRAININGS: 'trainings',
+  TRAINING_PROGRESS: 'training-progress',
   PROFILE: 'profile',
   META: 'meta',
   PENDING_SYNC: 'pending-sync',

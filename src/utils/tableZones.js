@@ -24,10 +24,50 @@ const DEPTH_LABELS = {
   [TABLE_DEPTH.LONG]: 'Largo',
 }
 
-const LANE_LABELS = {
-  [TABLE_LANE.LEFT]: 'Izq',
-  [TABLE_LANE.MIDDLE]: 'Medio',
-  [TABLE_LANE.RIGHT]: 'Der',
+const STROKE_LABELS = {
+  BACKHAND: 'Revés',
+  MIDDLE: 'Medio',
+  FOREHAND: 'Drive',
+}
+
+export function getZoneStroke(zoneId) {
+  const parsed = parseZoneId(zoneId)
+
+  if (!parsed) {
+    return ''
+  }
+
+  if (parsed.lane === TABLE_LANE.MIDDLE) {
+    return 'middle'
+  }
+
+  if (parsed.side === TABLE_SIDE.OWN) {
+    return parsed.lane === TABLE_LANE.LEFT ? 'backhand' : 'forehand'
+  }
+
+  return parsed.lane === TABLE_LANE.LEFT ? 'forehand' : 'backhand'
+}
+
+export function getZoneStrokeLabel(zoneId) {
+  const stroke = getZoneStroke(zoneId)
+
+  if (stroke === 'backhand') {
+    return STROKE_LABELS.BACKHAND
+  }
+
+  if (stroke === 'forehand') {
+    return STROKE_LABELS.FOREHAND
+  }
+
+  if (stroke === 'middle') {
+    return STROKE_LABELS.MIDDLE
+  }
+
+  return ''
+}
+
+export function getLaneStrokeLabel(side, lane) {
+  return getZoneStrokeLabel(getZoneId(side, TABLE_DEPTH.LONG, lane))
 }
 
 function isValidPart(value, allowed) {
@@ -93,7 +133,7 @@ export function formatZoneLabel(zoneId) {
     return ''
   }
 
-  return `${SIDE_LABELS[parsed.side]}, ${DEPTH_LABELS[parsed.depth].toLowerCase()} ${LANE_LABELS[parsed.lane].toLowerCase()}`
+  return `${SIDE_LABELS[parsed.side]}, ${DEPTH_LABELS[parsed.depth].toLowerCase()} ${getZoneStrokeLabel(zoneId).toLowerCase()}`
 }
 
 export function getZoneAriaLabel(zoneId) {
@@ -103,7 +143,7 @@ export function getZoneAriaLabel(zoneId) {
     return 'Zona'
   }
 
-  return `${SIDE_LABELS[parsed.side]}, ${DEPTH_LABELS[parsed.depth].toLowerCase()}, ${LANE_LABELS[parsed.lane].toLowerCase()}`
+  return `${SIDE_LABELS[parsed.side]}, ${DEPTH_LABELS[parsed.depth].toLowerCase()}, ${getZoneStrokeLabel(zoneId).toLowerCase()}`
 }
 
 export function getZoneShortLabel(zoneId) {
@@ -113,7 +153,7 @@ export function getZoneShortLabel(zoneId) {
     return ''
   }
 
-  return `${DEPTH_LABELS[parsed.depth]}\n${LANE_LABELS[parsed.lane]}`
+  return `${DEPTH_LABELS[parsed.depth]}\n${getZoneStrokeLabel(zoneId)}`
 }
 
 function getRow(side, depth) {

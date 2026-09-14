@@ -9,8 +9,20 @@ import {
 const REMOVED_CATALOG_DRILL_IDS = new Set(['grupo-rojo-warmup-table'])
 const REPLACED_DURATION_LABELS = new Set([
   '2 min 30 s por lado',
+  '2:30 por lado',
   '10 min · cambio cada 2 min 30 s',
+  '10 min · cambio cada 2:30',
 ])
+const SPLIT_WARMUP_DRILLS = [
+  {
+    combinedId: 'grupo-rojo-warmup-flat',
+    backhandId: 'grupo-rojo-warmup-flat-bh',
+  },
+  {
+    combinedId: 'grupo-rojo-warmup-top',
+    backhandId: 'grupo-rojo-warmup-top-bh',
+  },
+]
 
 const KIND_ORDER = [
   TRAINING_DRILL_KIND.WARMUP,
@@ -32,16 +44,33 @@ function applyCatalogDrillLayout(training) {
   const catalogById = new Map(
     createGrupoRojoTraining().drills.map((drill) => [drill.id, drill]),
   )
+  const splitDone = new Set(
+    SPLIT_WARMUP_DRILLS.filter((item) =>
+      training.drills.some((drill) => drill.id === item.backhandId),
+    ).map((item) => item.combinedId),
+  )
 
   return {
     ...training,
     drills: training.drills
       .filter((drill) => !REMOVED_CATALOG_DRILL_IDS.has(drill.id))
-      .map((drill) => {
+      .flatMap((drill) => {
         const catalogDrill = catalogById.get(drill.id)
+        const split = SPLIT_WARMUP_DRILLS.find((item) => item.combinedId === drill.id)
+        const catalogBackhand = split ? catalogById.get(split.backhandId) : null
+        const shouldSplit =
+          Boolean(split) &&
+          !splitDone.has(drill.id) &&
+          Boolean(catalogDrill) &&
+          Boolean(catalogBackhand) &&
+          (drill.steps.length > 2 || /revés/i.test(drill.title))
+
+        if (shouldSplit) {
+          return [catalogDrill, catalogBackhand]
+        }
 
         if (!catalogDrill) {
-          return drill
+          return [drill]
         }
 
         const durationLabel =
@@ -49,11 +78,13 @@ function applyCatalogDrillLayout(training) {
             ? catalogDrill.durationLabel
             : drill.durationLabel
 
-        return {
-          ...drill,
-          section: drill.section || catalogDrill.section,
-          durationLabel,
-        }
+        return [
+          {
+            ...drill,
+            section: drill.section || catalogDrill.section,
+            durationLabel,
+          },
+        ]
       }),
   }
 }

@@ -112,19 +112,39 @@ export function unlockTimerAudio() {
   return audioContext
 }
 
-function playTone(context, { frequency, start, duration, gain = 0.28 }) {
+function playTone(context, { frequency, start, duration, gain = 0.28, type = 'sine' }) {
   const oscillator = context.createOscillator()
   const gainNode = context.createGain()
+  const attack = Math.min(0.012, duration / 4)
+  const release = Math.min(0.03, duration / 3)
 
-  oscillator.type = 'sine'
+  oscillator.type = type
   oscillator.frequency.setValueAtTime(frequency, start)
   gainNode.gain.setValueAtTime(0.0001, start)
-  gainNode.gain.exponentialRampToValueAtTime(gain, start + 0.015)
+  gainNode.gain.exponentialRampToValueAtTime(gain, start + attack)
+  gainNode.gain.setValueAtTime(gain, start + Math.max(attack, duration - release))
   gainNode.gain.exponentialRampToValueAtTime(0.0001, start + duration)
   oscillator.connect(gainNode)
   gainNode.connect(context.destination)
   oscillator.start(start)
-  oscillator.stop(start + duration + 0.03)
+  oscillator.stop(start + duration + 0.02)
+}
+
+function playAlarmBurst(context, start, frequency) {
+  playTone(context, {
+    frequency,
+    start,
+    duration: 0.24,
+    gain: 0.78,
+    type: 'square',
+  })
+  playTone(context, {
+    frequency: frequency * 2,
+    start,
+    duration: 0.24,
+    gain: 0.28,
+    type: 'square',
+  })
 }
 
 function vibrate(pattern) {
@@ -155,28 +175,14 @@ export function playTimerAlarm() {
 
   if (context) {
     const start = context.currentTime
-    playTone(context, { frequency: 880, start, duration: 0.16, gain: 0.32 })
-    playTone(context, {
-      frequency: 880,
-      start: start + 0.22,
-      duration: 0.16,
-      gain: 0.32,
-    })
-    playTone(context, {
-      frequency: 988,
-      start: start + 0.44,
-      duration: 0.16,
-      gain: 0.32,
-    })
-    playTone(context, {
-      frequency: 660,
-      start: start + 0.72,
-      duration: 0.5,
-      gain: 0.36,
-    })
+    const cycle = 0.34
+
+    for (let index = 0; index < 8; index += 1) {
+      playAlarmBurst(context, start + index * cycle, index % 2 === 0 ? 932 : 698)
+    }
   }
 
-  vibrate([200, 80, 200, 80, 420])
+  vibrate([280, 70, 280, 70, 280, 70, 420, 70, 520])
 }
 
 export const TIMER_DURATION_PRESETS = [150, 300, 480, 600, 1200]
