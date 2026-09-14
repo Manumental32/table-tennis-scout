@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Dumbbell, Plus } from 'lucide-react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import DrillAnimation from '../components/training/DrillAnimation'
+import DrillTimer from '../components/training/DrillTimer'
 import TrainingDetail from '../components/training/TrainingDetail'
 import TrainingForm from '../components/training/TrainingForm'
 import TrainingList from '../components/training/TrainingList'
 import { useBackHandler } from '../hooks/useBackNavigation'
+import { useScreenScroll } from '../hooks/useScreenScroll'
 import { useTrainings } from '../hooks/useTrainings'
 import { cloneTraining, hasDrillSteps } from '../utils/trainings'
+import { getDefaultDrillSeconds } from '../utils/timer'
 
 const SCREENS = {
   LIST: 'list',
@@ -26,7 +29,7 @@ export default function TrainingsPage() {
     getTrainingById,
     isStoredTraining,
   } = useTrainings()
-  const [screen, setScreen] = useState(SCREENS.LIST)
+  const [screen, setScreenState] = useState(SCREENS.LIST)
   const [selectedTrainingId, setSelectedTrainingId] = useState(null)
   const [selectedDrillId, setSelectedDrillId] = useState(null)
 
@@ -37,9 +40,16 @@ export default function TrainingsPage() {
     (drill) => drill.id === selectedDrillId,
   )
 
-  useEffect(() => {
-    document.getElementById('app-content')?.scrollTo({ top: 0 })
-  }, [screen])
+  const scrollKey =
+    screen === SCREENS.LIST
+      ? 'trainings:list'
+      : screen === SCREENS.DRILL
+        ? `trainings:drill:${selectedDrillId ?? ''}`
+        : screen === SCREENS.FORM
+          ? `trainings:form:${selectedTrainingId ?? 'new'}`
+          : `trainings:detail:${selectedTrainingId ?? ''}`
+
+  const setScreen = useScreenScroll(scrollKey, setScreenState)
 
   const handleHardwareBack = useCallback(() => {
     if (screen === SCREENS.DRILL) {
@@ -60,7 +70,7 @@ export default function TrainingsPage() {
     }
 
     return false
-  }, [screen, selectedTrainingId])
+  }, [screen, selectedTrainingId, setScreen])
 
   useBackHandler(handleHardwareBack)
 
@@ -141,13 +151,22 @@ export default function TrainingsPage() {
           title={selectedDrill.title}
           onBack={() => setScreen(SCREENS.DETAIL)}
         />
-        {hasDrillSteps(selectedDrill) ? (
-          <DrillAnimation key={selectedDrill.id} drill={selectedDrill} />
-        ) : (
-          <p className="text-sm leading-relaxed text-slate-300">
-            {selectedDrill.description}
-          </p>
-        )}
+        <div className="space-y-4">
+          <DrillTimer
+            key={selectedDrill.id}
+            defaultSeconds={getDefaultDrillSeconds(
+              selectedDrill,
+              selectedTraining,
+            )}
+          />
+          {hasDrillSteps(selectedDrill) ? (
+            <DrillAnimation key={selectedDrill.id} drill={selectedDrill} />
+          ) : selectedDrill.description ? (
+            <p className="text-sm leading-relaxed text-slate-300">
+              {selectedDrill.description}
+            </p>
+          ) : null}
+        </div>
       </>
     )
   }

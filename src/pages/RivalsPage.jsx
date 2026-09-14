@@ -1,11 +1,12 @@
 import { Plus, Search, Users } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import QuickScoutingCard from '../components/rivals/QuickScoutingCard'
 import RivalForm from '../components/rivals/RivalForm'
 import RivalList from '../components/rivals/RivalList'
 import { useBackHandler } from '../hooks/useBackNavigation'
+import { useScreenScroll } from '../hooks/useScreenScroll'
 import { useMatches } from '../hooks/useMatches'
 import { useRivals } from '../hooks/useRivals'
 import { filterRivals } from '../utils/rivals'
@@ -22,16 +23,21 @@ const SCREENS = {
 export default function RivalsPage() {
   const { rivals, addRival, updateRival, removeRival, getRivalById } = useRivals()
   const { matches } = useMatches()
-  const [screen, setScreen] = useState(SCREENS.LIST)
+  const [screen, setScreenState] = useState(SCREENS.LIST)
   const [selectedRivalId, setSelectedRivalId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   const selectedRival = selectedRivalId ? getRivalById(selectedRivalId) : null
   const visibleRivals = filterRivals(rivals, searchQuery)
 
-  useEffect(() => {
-    document.getElementById('app-content')?.scrollTo({ top: 0 })
-  }, [screen])
+  const scrollKey =
+    screen === SCREENS.LIST
+      ? 'rivals:list'
+      : screen === SCREENS.FORM
+        ? `rivals:form:${selectedRivalId ?? 'new'}`
+        : `rivals:${screen}:${selectedRivalId ?? ''}`
+
+  const setScreen = useScreenScroll(scrollKey, setScreenState)
 
   const handleHardwareBack = useCallback(() => {
     if (screen === SCREENS.SCOUTING) {
@@ -51,7 +57,7 @@ export default function RivalsPage() {
     }
 
     return false
-  }, [screen, selectedRivalId])
+  }, [screen, selectedRivalId, setScreen])
 
   useBackHandler(handleHardwareBack)
 

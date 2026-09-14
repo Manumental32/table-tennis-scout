@@ -250,6 +250,7 @@ export function createTrainingDrill(overrides = {}) {
       ? kind
       : TRAINING_DRILL_KIND.CONTINUOUS,
     title: '',
+    section: '',
     durationLabel: '',
     description: '',
     ...rest,

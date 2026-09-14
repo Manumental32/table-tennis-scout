@@ -1,6 +1,16 @@
 import { TRAINING_DRILL_KIND } from './constants'
 import { createId, createTraining } from './dataModels'
-import { getCatalogTrainings } from './trainingCatalog'
+import {
+  GRUPO_ROJO_TRAINING_ID,
+  createGrupoRojoTraining,
+  getCatalogTrainings,
+} from './trainingCatalog'
+
+const REMOVED_CATALOG_DRILL_IDS = new Set(['grupo-rojo-warmup-table'])
+const REPLACED_DURATION_LABELS = new Set([
+  '2 min 30 s por lado',
+  '10 min · cambio cada 2 min 30 s',
+])
 
 const KIND_ORDER = [
   TRAINING_DRILL_KIND.WARMUP,
@@ -14,9 +24,43 @@ const KIND_TITLES = {
   [TRAINING_DRILL_KIND.SERVE]: 'Ejercicios con saque',
 }
 
+function applyCatalogDrillLayout(training) {
+  if (training.id !== GRUPO_ROJO_TRAINING_ID) {
+    return training
+  }
+
+  const catalogById = new Map(
+    createGrupoRojoTraining().drills.map((drill) => [drill.id, drill]),
+  )
+
+  return {
+    ...training,
+    drills: training.drills
+      .filter((drill) => !REMOVED_CATALOG_DRILL_IDS.has(drill.id))
+      .map((drill) => {
+        const catalogDrill = catalogById.get(drill.id)
+
+        if (!catalogDrill) {
+          return drill
+        }
+
+        const durationLabel =
+          !drill.durationLabel || REPLACED_DURATION_LABELS.has(drill.durationLabel)
+            ? catalogDrill.durationLabel
+            : drill.durationLabel
+
+        return {
+          ...drill,
+          section: drill.section || catalogDrill.section,
+          durationLabel,
+        }
+      }),
+  }
+}
+
 export function mergeTrainingCatalog(stored = []) {
   const items = Array.isArray(stored)
-    ? stored.map((item) => createTraining(item))
+    ? stored.map((item) => applyCatalogDrillLayout(createTraining(item)))
     : []
   const storedIds = new Set(items.map((item) => item.id))
   const catalog = getCatalogTrainings().filter((item) => !storedIds.has(item.id))
@@ -24,12 +68,30 @@ export function mergeTrainingCatalog(stored = []) {
   return [...catalog, ...items]
 }
 
+function groupDrillsBySection(drills) {
+  const sections = []
+  const indexByTitle = new Map()
+
+  for (const drill of drills) {
+    const title = drill.section?.trim() ?? ''
+
+    if (!indexByTitle.has(title)) {
+      indexByTitle.set(title, sections.length)
+      sections.push({ title, drills: [] })
+    }
+
+    sections[indexByTitle.get(title)].drills.push(drill)
+  }
+
+  return sections
+}
+
 export function groupDrillsByKind(drills = []) {
   return KIND_ORDER.map((kind) => ({
     kind,
     title: KIND_TITLES[kind],
-    drills: drills.filter((drill) => drill.kind === kind),
-  })).filter((group) => group.drills.length > 0)
+    sections: groupDrillsBySection(drills.filter((drill) => drill.kind === kind)),
+  })).filter((group) => group.sections.length > 0)
 }
 
 export function hasDrillSteps(drill) {

@@ -1,5 +1,5 @@
 import { CalendarDays, Plus } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import RankingView from '../components/ranking/RankingView'
@@ -10,6 +10,7 @@ import TournamentForm from '../components/tournament/TournamentForm'
 import TournamentList from '../components/tournament/TournamentList'
 import TournamentPdfUpload from '../components/tournament/TournamentPdfUpload'
 import { useBackHandler } from '../hooks/useBackNavigation'
+import { useScreenScroll } from '../hooks/useScreenScroll'
 import { useMatches } from '../hooks/useMatches'
 import { usePlayerProfile } from '../hooks/usePlayerProfile'
 import { useRivals } from '../hooks/useRivals'
@@ -55,7 +56,7 @@ export default function TournamentPage() {
   const { rivals, addRival } = useRivals()
   const { matches, addMatch, updateMatch, getMatchById } = useMatches()
   const { profile } = usePlayerProfile()
-  const [screen, setScreen] = useState(SCREENS.LIST)
+  const [screen, setScreenState] = useState(SCREENS.LIST)
   const [selectedTournamentId, setSelectedTournamentId] = useState(null)
   const [selectedFixtureMatchId, setSelectedFixtureMatchId] = useState(null)
   const [analysisSection, setAnalysisSection] = useState(ANALYSIS_SECTION.PRE)
@@ -74,9 +75,16 @@ export default function TournamentPage() {
     : null
   const visibleTournaments = sortTournaments(tournaments)
 
-  useEffect(() => {
-    document.getElementById('app-content')?.scrollTo({ top: 0 })
-  }, [screen])
+  const scrollKey =
+    screen === SCREENS.LIST
+      ? 'tournaments:list'
+      : screen === SCREENS.ANALYSIS
+        ? `tournaments:analysis:${selectedTournamentId ?? ''}:${selectedFixtureMatchId ?? ''}`
+        : screen === SCREENS.FORM
+          ? `tournaments:form:${selectedTournamentId ?? 'new'}`
+          : `tournaments:${screen}:${selectedTournamentId ?? ''}`
+
+  const setScreen = useScreenScroll(scrollKey, setScreenState)
 
   const handleHardwareBack = useCallback(() => {
     if (screen === SCREENS.ANALYSIS) {
@@ -114,7 +122,7 @@ export default function TournamentPage() {
     }
 
     return false
-  }, [rankingBackScreen, screen, selectedTournamentId])
+  }, [rankingBackScreen, screen, selectedTournamentId, setScreen])
 
   useBackHandler(handleHardwareBack)
 

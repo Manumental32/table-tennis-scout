@@ -43,18 +43,11 @@ export function createGrupoRojoTraining() {
         steps: [],
       },
       {
-        id: 'grupo-rojo-warmup-table',
-        kind: TRAINING_DRILL_KIND.WARMUP,
-        title: 'Calentamiento en mesa',
-        durationLabel: '20 min',
-        description: 'Peloteo libre para entrar en calor. Sin patrón fijo.',
-        steps: [],
-      },
-      {
         id: 'grupo-rojo-warmup-flat',
         kind: TRAINING_DRILL_KIND.WARMUP,
+        section: 'Calentamiento en mesa',
         title: 'Plano de drive y revés',
-        durationLabel: '2 min 30 s por lado',
+        durationLabel: '2:30 por lado',
         description: 'Intercambio plano. Cambiá de lado a los 2 minutos 30.',
         steps: [
           step(A, DRILL_ACTION.FLAT, Z.B_LONG_FH, 'Plano de drive'),
@@ -66,9 +59,10 @@ export function createGrupoRojoTraining() {
       {
         id: 'grupo-rojo-warmup-top',
         kind: TRAINING_DRILL_KIND.WARMUP,
+        section: 'Calentamiento en mesa',
         title: 'Top de drive y revés',
-        durationLabel: '10 min · cambio cada 2 min 30 s',
-        description: 'Topspin de drive y de revés. Cambiá cada 2 minutos 30. Total 10 minutos.',
+        durationLabel: '10 min · cambio cada 2:30',
+        description: 'Topspin de drive y de revés. Cambiá cada 2:30. Total 10 minutos.',
         steps: [
           step(A, DRILL_ACTION.TOP, Z.B_LONG_FH, 'Top de drive'),
           step(B, DRILL_ACTION.BLOCK, Z.A_LONG_FH, 'Bloquea al drive'),
@@ -79,6 +73,7 @@ export function createGrupoRojoTraining() {
       {
         id: 'grupo-rojo-warmup-chop',
         kind: TRAINING_DRILL_KIND.WARMUP,
+        section: 'Calentamiento en mesa',
         title: 'Corte cruzado',
         durationLabel: '5 min',
         description: 'Corte o push cruzado, de revés a revés.',

@@ -1,10 +1,11 @@
 import { Plus, Search, Swords, Users } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import EmptyState from '../components/common/EmptyState'
 import ScreenToolbar from '../components/common/ScreenToolbar'
 import MatchForm from '../components/matches/MatchForm'
 import MatchList from '../components/matches/MatchList'
 import { useBackHandler } from '../hooks/useBackNavigation'
+import { useScreenScroll } from '../hooks/useScreenScroll'
 import { useMatches } from '../hooks/useMatches'
 import { usePlayerProfile } from '../hooks/usePlayerProfile'
 import { useRivals } from '../hooks/useRivals'
@@ -40,7 +41,7 @@ export default function MatchesPage() {
   const { profile } = usePlayerProfile()
   const { teammates, addTeammate, getTeammateById } = useTeammates()
   const { tournaments, getTournamentById } = useTournament()
-  const [screen, setScreen] = useState(SCREENS.LIST)
+  const [screen, setScreenState] = useState(SCREENS.LIST)
   const [formKind, setFormKind] = useState(MATCH_KIND.OWN)
   const [listFilter, setListFilter] = useState(LIST_FILTERS.ALL)
   const [selectedMatchId, setSelectedMatchId] = useState(null)
@@ -73,9 +74,14 @@ export default function MatchesPage() {
     filterMatches(filteredByKind, getRivalById, getTeammateById, searchQuery),
   )
 
-  useEffect(() => {
-    document.getElementById('app-content')?.scrollTo({ top: 0 })
-  }, [screen])
+  const scrollKey =
+    screen === SCREENS.LIST
+      ? 'matches:list'
+      : screen === SCREENS.FORM
+        ? `matches:form:${selectedMatchId ?? 'new'}`
+        : `matches:detail:${selectedMatchId ?? ''}`
+
+  const setScreen = useScreenScroll(scrollKey, setScreenState)
 
   const handleHardwareBack = useCallback(() => {
     if (screen === SCREENS.FORM && selectedMatchId) {
@@ -90,7 +96,7 @@ export default function MatchesPage() {
     }
 
     return false
-  }, [screen, selectedMatchId])
+  }, [screen, selectedMatchId, setScreen])
 
   useBackHandler(handleHardwareBack)
 

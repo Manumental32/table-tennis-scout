@@ -57,28 +57,35 @@ export default function TrainingDetail({
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
             {group.title}
           </h3>
-          {group.drills.map((drill) => (
-            <article key={drill.id} className="rounded-2xl bg-slate-800 px-4 py-4">
-              <p className="text-base font-semibold text-white">{drill.title}</p>
-              {drill.durationLabel ? (
-                <p className="mt-1 text-sm text-slate-400">{drill.durationLabel}</p>
+          {group.sections.map((section) => (
+            <div key={section.title || group.kind} className="space-y-3">
+              {section.title ? (
+                <h4 className="pt-1 text-sm font-semibold text-slate-200">
+                  {section.title}
+                </h4>
               ) : null}
-              {drill.description ? (
-                <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                  {drill.description}
-                </p>
-              ) : null}
-              {hasDrillSteps(drill) ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenDrill(drill.id)}
-                  className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-semibold text-slate-900"
-                >
-                  <Play className="h-4 w-4" aria-hidden="true" />
-                  Ver A y B
-                </button>
-              ) : null}
-            </article>
+              {section.drills.map((drill) => (
+                <article key={drill.id} className="rounded-2xl bg-slate-800 px-4 py-4">
+                  <p className="text-base font-semibold text-white">{drill.title}</p>
+                  {drill.durationLabel ? (
+                    <p className="mt-1 text-sm text-slate-400">{drill.durationLabel}</p>
+                  ) : null}
+                  {drill.description ? (
+                    <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                      {drill.description}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => onOpenDrill(drill.id)}
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-semibold text-slate-900"
+                  >
+                    <Play className="h-4 w-4" aria-hidden="true" />
+                    {hasDrillSteps(drill) ? 'Hacer ejercicio' : 'Empezar timer'}
+                  </button>
+                </article>
+              ))}
+            </div>
           ))}
         </section>
       ))}

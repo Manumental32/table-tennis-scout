@@ -48,6 +48,14 @@ export default function DrillEditor({
         options={TRAINING_DRILL_KIND_OPTIONS}
       />
       <TextField
+        label="Encabezado"
+        name="section"
+        value={drill.section}
+        onChange={handleChange}
+        placeholder="Calentamiento en mesa"
+        autoComplete="off"
+      />
+      <TextField
         label="Duración"
         name="durationLabel"
         value={drill.durationLabel}
